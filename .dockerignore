@@ -1,0 +1,13 @@
+.venv
+node_modules
+frontend/build
+**/__pycache__
+*.pyc
+.git
+frontend_backup
+**/venv
+**/.venv
+**/node_modules
+**/build
+**/*.pyc
+*.zip

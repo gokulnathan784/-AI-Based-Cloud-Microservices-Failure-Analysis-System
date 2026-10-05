@@ -1,0 +1,94 @@
+services:
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    depends_on:
+      - user-service
+      - order-service
+      - payment-service
+      - notification-service
+      - postgres
+      - mongodb
+      - jaeger
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cloud_monitoring
+      MONGO_URL: mongodb://mongodb:27017
+      MONGO_DB: cloud_monitoring
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+    restart: unless-stopped
+
+  user-service:
+    build: ./user-service
+    ports: ["8001:8001"]
+    restart: unless-stopped
+  order-service:
+    build: ./order-service
+    ports: ["8002:8002"]
+    restart: unless-stopped
+  payment-service:
+    build: ./payment-service
+    ports: ["8003:8003"]
+    restart: unless-stopped
+  notification-service:
+    build: ./notification-service
+    ports: ["8004:8004"]
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports: ["3000:80"]
+    depends_on: [backend]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: cloud-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cloud_monitoring
+    ports: ["5432:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7
+    container_name: cloud-mongodb
+    ports: ["27017:27017"]
+    volumes: [mongodb_data:/data/db]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cloud-prometheus
+    ports: ["9090:9090"]
+    volumes: [./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    depends_on: [backend]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cloud-grafana
+    ports: ["3001:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: cloud-jaeger
+    ports: ["16686:16686", "4317:4317", "4318:4318"]
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  grafana_data:
